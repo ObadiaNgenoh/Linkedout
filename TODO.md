@@ -1,24 +1,28 @@
 # LinkedOut product TODO
 
-## Verified ex-employee identity
-- [x] People have a profile-like identity with an alias, role, former company verification count, exit themes, connections, and recent activity.
-- [x] Company-specific posts remain blocked until the proof gate offers offer letter, payslip, or work-email verification and shows that proof is auto-blurred, checked once, and deleted.
-- [x] No Supabase authentication, database, storage, SDK, or external auth provider is used.
+## Real member profiles
+- [x] Allow email signups with real name, username, and email data stored in the managed database.
+- [x] Do not add email verification, passwords, or user authentication yet; clearly label this as an early-access limitation.
+- [x] Allow users to edit their name, username, and bio.
+- [x] Allow users to choose a profile photo from their library or capture one directly with the camera, upload it through managed storage, and persist the stable photo URL.
 
-## LinkedIn-inspired live feed
-- [x] Show a live feed of verified ex-employee activity with company context, reactions, comments, and a compose prompt.
-- [x] Show live connection state and emit / receive realtime feed events through the managed WebSocket broker, with local demo fallback when the socket is unavailable.
-- [x] Keep the feed text-first: no job applications, resume, video, or AI summary features.
+## Real feed and verification
+- [x] Remove seeded mock feed data; load posts from the managed database.
+- [x] Store posts, reactions, comments, and company verification records in the managed database.
+- [x] Block company-specific posting unless the member has an approved verification for that exact company.
+- [x] Keep proof language explicit: proof is checked once, then deleted; production still needs secure document-review infrastructure before launch.
 
-## Network and safe-space communication
-- [x] Show a Network surface with suggested quitters, shared exit themes, connection state, and active-now presence.
-- [x] Show a Messages surface with safe-space conversation previews and a send action wired to realtime message events.
-- [x] Preserve anonymous-by-default language while allowing richer profile context than a nameless post card.
+## Real-time communication
+- [x] Persist direct messages in the managed database.
+- [x] Broadcast `message:new` events through the WebSocket channel so a connected phone receives a sent message live.
+- [x] Broadcast feed, reaction, comment, and presence events and refetch durable state after events.
+- [x] Load messages from the database on reconnect so they remain available after a temporary disconnect.
 
-## Company file and search
-- [x] Show a company file with story count, average stay, toxic tags, leave-reason cloud, comeback split, and employer public reply.
-- [x] Search by company or role, including “Safaricom Marketing”, and show matching stories.
-
-## Delivery boundary
-- [x] Deliver a portrait-friendly Expo / React Native experience with local initial data, local UI state, and an in-memory WebSocket broker for the prototype.
+## Product surfaces
+- [x] Keep LinkedIn-inspired Feed, Network, Messages, editable You profile, company file, and search surfaces.
 - [x] Keep the Paper Dossier visual system: warm paper, ink type, coral actions, yellow brand mark, editorial cards, and protective evidence language.
+- [x] Keep the no-Supabase boundary.
+
+## Explicit early-access boundary
+- [x] No passwords, email verification, secure authentication, authorization boundary, moderation pipeline, or rate limiting yet.
+- [x] No job applications, recruiter marketplace, resume, video, or AI summaries.

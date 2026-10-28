@@ -13,7 +13,7 @@ export function attachRealtime(server: Server) {
 
   wss.on("connection", (socket) => {
     clients.add(socket);
-    socket.send(JSON.stringify({ type: "presence", payload: { online: clients.size, mode: "prototype" } } satisfies RealtimeEvent));
+    socket.send(JSON.stringify({ type: "presence", payload: { online: clients.size, mode: "database-backed" } } satisfies RealtimeEvent));
 
     socket.on("message", (raw) => {
       try {

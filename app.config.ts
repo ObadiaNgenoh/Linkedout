@@ -108,6 +108,13 @@ const config: ExpoConfig = {
     "expo-asset",
     "expo-router",
     [
+      "expo-image-picker",
+      {
+        photosPermission: "Allow $(PRODUCT_NAME) to use a photo for your LinkedOut profile.",
+        cameraPermission: "Allow $(PRODUCT_NAME) to capture a LinkedOut profile photo.",
+      },
+    ],
+    [
       "expo-audio",
       {
         microphonePermission: "Allow $(PRODUCT_NAME) to access your microphone.",

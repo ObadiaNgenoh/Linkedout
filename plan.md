@@ -2,25 +2,25 @@
 
 ## Product direction
 
-LinkedOut is a LinkedIn-inspired professional network for people who quit or were fired. It is not a job board: the central object is a verified exit identity and the safe, useful conversation around what happened at work. People can have profiles, follow the live feed, connect with others who have shared experiences, comment, react, and message each other. Any company-specific story remains gated behind proof that the author worked there.
+LinkedOut is a LinkedIn-inspired professional network for people who quit or were fired. It is not a job board: the central object is a verified exit identity and the safe, useful conversation around what happened at work. People can have profiles, connect with other members, read a real-time feed, comment, react, and message each other. Any company-specific story remains gated behind proof that the author worked there.
 
-## Implementation
+## Current implementation
 
-The app remains a self-contained Expo Router / React Native / TypeScript prototype with no Supabase authentication, database, storage, SDK, or external auth provider. Local mock data powers the initial experience. A small managed API WebSocket broker at `/ws` broadcasts prototype `feed:new`, `feed:reaction`, `feed:comment`, `message:new`, and `presence` events. The client shows connection state and falls back to a local demo mode if the socket is unavailable. This makes the interaction real in the preview without pretending the prototype has production identity, moderation, or durable persistence.
+The app now uses the managed MySQL-compatible database and managed object storage directly. There is no Supabase and no seeded mock data. On first launch, a member creates a real profile with name, username, and email; the record is stored immediately. This is intentionally not authentication yet: there is no password, email verification, or secure session. The device stores its local member reference so the app can reopen the same profile.
+
+Users can edit name, username, and bio. They can choose a profile photo from the device library or capture one with the camera. The server validates the base64 upload, sends it through the managed storage presign flow, stores the stable asset path on the user record, and returns the updated profile.
+
+Feed posts, reactions, comments, verification records, and direct messages are persisted in MySQL. The WebSocket endpoint `/ws` broadcasts database-backed `feed:new`, `feed:reaction`, `feed:comment`, `message:new`, and `presence` events. Messages are inserted before broadcast, so a connected phone receives the message live and a reconnecting phone can load it from the database. The client refetches after realtime events to stay consistent with durable state.
 
 ## Experience surfaces
 
-- **Live Feed:** LinkedIn-like stream with verified ex-employee identity rows, reactions, comments, company context, live activity, and a compose prompt.
-- **Verified profiles:** Anonymous-by-default but richer than an anonymous card: display name / alias, role, former-company verification count, exit themes, connections, and recent activity.
-- **Network:** People who left similar companies or share exit themes; connect actions and a small “active now” presence signal.
-- **Messages:** Direct conversations in a safe-space inbox, with a send action that emits a realtime event.
-- **Company file:** Evidence-backed company view with stories and employer replies; company-specific posting stays verification-first.
-- **Proof gate:** Offer letter, payslip, or work email; auto-blur, one-time review, delete-after-review copy, and Verified Ex-Employee badge.
-
-## Design
-
-Keep the chosen Paper Dossier direction: warm paper background, ink-black type, coral actions, yellow brand mark, editorial cards, compact metadata labels, and a protective/credible tone. Add LinkedIn-inspired density through identity rows, network stats, connection affordances, message previews, and live status—not through blue corporate branding.
+- **Live Feed:** real database posts with member identity rows, reactions, comments, company context, and live connection state.
+- **Profiles:** editable name, username, bio, email display, and profile image from library or camera.
+- **Network:** real member directory sourced from stored users, with direct-message actions.
+- **Messages:** durable one-to-one messages sent through HTTP, broadcast over WebSocket, and reloaded from storage on reconnect.
+- **Company file:** database-backed company story view and search.
+- **Proof gate:** company + proof type creates a verification record; posting checks an approved verification for that exact company.
 
 ## Boundaries
 
-No Supabase. No job applications, recruiter marketplace, resumes, video, or AI summaries. The prototype's websocket broker is in-memory and not an authentication system; production would need a durable database, identity provider, moderation pipeline, rate limits, and encrypted evidence handling before launch.
+No Supabase. No email verification or user authentication yet. Because there is no authentication, this release is a development/early-access build: the client-provided device/member ID is not a security boundary. Before public launch, add passwordless or password authentication, email verification, authorization checks, moderation, rate limits, encrypted proof handling, and a secure identity/session model.

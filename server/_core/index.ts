@@ -9,6 +9,7 @@ import { createContext } from "./context";
 import { createCorsMiddleware } from "./cors";
 import { clearLegacySessionCookie } from "./cookies";
 import { attachRealtime } from "../realtime";
+import { registerAppApi } from "../app-api";
 
 async function startServer() {
   const app = express();
@@ -23,6 +24,7 @@ async function startServer() {
 
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  registerAppApi(app);
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now() });
