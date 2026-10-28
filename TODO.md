@@ -1,21 +1,24 @@
-# LinkedOut MVP TODO
+# LinkedOut product TODO
 
-## Feed — The Tea
-- [x] Show anonymous post cards with required company name, role / department, duration, REAL reason you quit capped at 300 characters, tags such as #Micromanagement, #UnpaidOvertime, #FakeFamilyCulture, and #NoRaise, plus a “Same here” upvote action.
-- [x] Keep posts anonymous with no names or profile pictures; show roles only.
+## Verified ex-employee identity
+- [x] People have a profile-like identity with an alias, role, former company verification count, exit themes, connections, and recent activity.
+- [x] Company-specific posts remain blocked until the proof gate offers offer letter, payslip, or work-email verification and shows that proof is auto-blurred, checked once, and deleted.
+- [x] No Supabase authentication, database, storage, SDK, or external auth provider is used.
 
-## Proof to Post
-- [x] Prevent story submission until the user verifies they worked there.
-- [x] Represent the MVP verification flow with offer letter, payslip, or work email options, a local proof-checked state, a “Verified Ex-Employee” badge, and explicit copy that proof is auto-blurred, checked once, and deleted.
-- [x] Do not use Supabase authentication, database, storage, SDK, or any external auth provider.
+## LinkedIn-inspired live feed
+- [x] Show a live feed of verified ex-employee activity with company context, reactions, comments, and a compose prompt.
+- [x] Show live connection state and emit / receive realtime feed events through the managed WebSocket broker, with local demo fallback when the socket is unavailable.
+- [x] Keep the feed text-first: no job applications, resume, video, or AI summary features.
 
-## Company Page
-- [x] Show why people actually leave as a word-cloud-like tag cluster, average stay time, top 3 toxic tags, and “Would you come back?” Yes/No percentages.
-- [x] Show that employers cannot delete stories but can reply publicly through an employer reply callout.
+## Network and safe-space communication
+- [x] Show a Network surface with suggested quitters, shared exit themes, connection state, and active-now presence.
+- [x] Show a Messages surface with safe-space conversation previews and a send action wired to realtime message events.
+- [x] Preserve anonymous-by-default language while allowing richer profile context than a nameless post card.
 
-## Search
-- [x] Let a user search by company and role, including an example such as “Safaricom Marketing”, and show story counts and matching stories.
+## Company file and search
+- [x] Show a company file with story count, average stay, toxic tags, leave-reason cloud, comeback split, and employer public reply.
+- [x] Search by company or role, including “Safaricom Marketing”, and show matching stories.
 
-## MVP boundaries and delivery
-- [x] Exclude job applications, DMs, resumes, AI summaries, video, and other non-MVP flows.
-- [x] Deliver a portrait-friendly Expo / React Native experience with local mock data and local state for the first visual prototype.
+## Delivery boundary
+- [x] Deliver a portrait-friendly Expo / React Native experience with local initial data, local UI state, and an in-memory WebSocket broker for the prototype.
+- [x] Keep the Paper Dossier visual system: warm paper, ink type, coral actions, yellow brand mark, editorial cards, and protective evidence language.

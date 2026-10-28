@@ -1,32 +1,26 @@
-# LinkedOut MVP plan
+# LinkedOut product plan
+
+## Product direction
+
+LinkedOut is a LinkedIn-inspired professional network for people who quit or were fired. It is not a job board: the central object is a verified exit identity and the safe, useful conversation around what happened at work. People can have profiles, follow the live feed, connect with others who have shared experiences, comment, react, and message each other. Any company-specific story remains gated behind proof that the author worked there.
 
 ## Implementation
 
-Build the first-run MVP as a self-contained Expo Router / React Native / TypeScript prototype using only local mocked data and local UI state. No Supabase authentication, database, storage, SDK, or external auth provider will be used. The current feed is the primary screen; the bottom bar switches between Feed, Search, Company, and You. A compose action opens a verification-first flow: the user must pass a local mocked "proof checked" gate before the story form becomes available. Search filters mocked company stories. Company view shows aggregate leave reasons, average stay, toxic tags, comeback split, and employer reply copy. The prototype is intentionally text-only and excludes DMs, jobs, resumes, video, and AI summaries.
+The app remains a self-contained Expo Router / React Native / TypeScript prototype with no Supabase authentication, database, storage, SDK, or external auth provider. Local mock data powers the initial experience. A small managed API WebSocket broker at `/ws` broadcasts prototype `feed:new`, `feed:reaction`, `feed:comment`, `message:new`, and `presence` events. The client shows connection state and falls back to a local demo mode if the socket is unavailable. This makes the interaction real in the preview without pretending the prototype has production identity, moderation, or durable persistence.
 
-## Project structure
+## Experience surfaces
 
-- `app/(tabs)/index.tsx`: all MVP UI state, mocked stories, feed/search/company/profile views, compose and verification sheets.
-- `app/(tabs)/_layout.tsx`: mobile tab shell and icon labels.
-- `app.config.ts`: LinkedOut app identity and native bundle configuration.
-- `assets/images/*`: square brand icon and native icon variants.
-- `TODO.md`: outcome-level acceptance criteria and progress.
+- **Live Feed:** LinkedIn-like stream with verified ex-employee identity rows, reactions, comments, company context, live activity, and a compose prompt.
+- **Verified profiles:** Anonymous-by-default but richer than an anonymous card: display name / alias, role, former-company verification count, exit themes, connections, and recent activity.
+- **Network:** People who left similar companies or share exit themes; connect actions and a small “active now” presence signal.
+- **Messages:** Direct conversations in a safe-space inbox, with a send action that emits a realtime event.
+- **Company file:** Evidence-backed company view with stories and employer replies; company-specific posting stays verification-first.
+- **Proof gate:** Offer letter, payslip, or work email; auto-blur, one-time review, delete-after-review copy, and Verified Ex-Employee badge.
 
 ## Design
 
-Three possible directions: **Paper Dossier** (0.06): editorial paper textures and redacted evidence; **Neon Exit Sign** (0.07): dark nightlife palette and glowing status colors; **Union Noticeboard** (0.05): photocopied flyers, stamps, and protest typography.
+Keep the chosen Paper Dossier direction: warm paper background, ink-black type, coral actions, yellow brand mark, editorial cards, compact metadata labels, and a protective/credible tone. Add LinkedIn-inspired density through identity rows, network stats, connection affordances, message previews, and live status—not through blue corporate branding.
 
-Chosen direction: **Paper Dossier**.
+## Boundaries
 
-- **Design movement:** indie editorial zine meets workplace whistleblower bulletin.
-- **Core principles:** high contrast, anonymous by default, evidence-forward, fast to scan.
-- **Color philosophy:** warm paper (#F7F2E8) makes the feed feel tactile; ink (#141414) is uncompromising; coral (#F05A47) signals action and heat; yellow (#F4D35E) is the ownable LinkedOut highlight.
-- **Layout paradigm:** stacked editorial cards with offset labels and a persistent bottom rail, not a conventional centered dashboard.
-- **Signature elements:** oversized uppercase wordmark, small all-caps metadata labels, and coral “Same here” buttons.
-- **Interaction philosophy:** every tap gives an immediate, legible state change; verification is a transparent gate rather than a hidden login wall.
-- **Animation:** use native press opacity and small sheet transitions only; no distracting looping motion.
-- **Typography system:** bold system sans for headlines, compact uppercase labels with letter spacing, relaxed body copy for stories.
-- **Brand essence:** the anonymous exit interview for people who are done pretending; candid, sharp, protective.
-- **Brand voice:** headlines like “THE TEA” and “NO CORPORATE SPIN.” Microcopy: “Say what the exit survey wouldn’t.” and “Proof first. Then spill.”
-- **Wordmark & logo:** a black rounded square with a coral door/arrow cutout, paired with a condensed-looking uppercase wordmark.
-- **Signature brand color:** coral #F05A47.
+No Supabase. No job applications, recruiter marketplace, resumes, video, or AI summaries. The prototype's websocket broker is in-memory and not an authentication system; production would need a durable database, identity provider, moderation pipeline, rate limits, and encrypted evidence handling before launch.
