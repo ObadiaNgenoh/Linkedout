@@ -5,6 +5,7 @@
 - [x] Do not add email verification, passwords, or user authentication yet; clearly label this as an early-access limitation.
 - [x] Allow users to edit their name, username, and bio.
 - [x] Allow users to choose a profile photo from their library or capture one directly with the camera, upload it through managed storage, and persist the stable photo URL.
+- [x] Add a profile logout button that clears the local device session without deleting the stored account, posts, or messages.
 
 ## Real feed and verification
 - [x] Remove seeded mock feed data; load posts from the managed database.
