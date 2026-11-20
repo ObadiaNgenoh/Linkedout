@@ -1,0 +1,7 @@
+{
+  "name": "linkedout-web",
+  "private": true,
+  "scripts": { "dev": "next dev -p 3001", "build": "next build", "start": "next start -p 3001" },
+  "dependencies": { "next": "^15.5.7", "react": "19.2.3", "react-dom": "19.2.3" },
+  "devDependencies": { "@types/node": "^22.19.3", "@types/react": "~19.2.18", "@types/react-dom": "^19.2.2", "typescript": "~6.0.3" }
+}

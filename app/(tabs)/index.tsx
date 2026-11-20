@@ -6,7 +6,7 @@ import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, St
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const C = { paper: "#F7F2E8", ink: "#141414", muted: "#766F67", line: "#DED5C8", coral: "#F05A47", yellow: "#F4D35E", cream: "#FFFDF8", sage: "#D9E5D6", lavender: "#E5DDF2" };
-const API = process.env.EXPO_PUBLIC_API_BASE_URL || "http://127.0.0.1:3000";
+const API = process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.linkedout.us.ci";
 const WS = API.replace(/^http/, "ws") + "/ws";
 
 type User = { id: number; name: string | null; username: string | null; email: string | null; profilePhotoUrl: string | null; bio: string | null };

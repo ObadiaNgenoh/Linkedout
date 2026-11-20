@@ -1,0 +1,51 @@
+name: Build LinkedOut APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify live web app
+        run: curl --fail --silent --show-error --location https://linkedout.us.ci/ >/dev/null
+      - name: Verify live API
+        run: curl --fail --silent --show-error https://api.linkedout.us.ci/api/health
+
+  build-apk:
+    needs: verify-deployment
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Enable pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm check
+
+      - name: Build API
+        run: pnpm build
+
+      - name: Build Android APK with EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: eas build --platform android --profile preview --non-interactive
