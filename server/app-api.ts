@@ -146,7 +146,7 @@ export function registerAppApi(app: Express) {
     const { authorId, company = "The Wire", role, duration, reason, content, tags, postType = "text", mediaDataUri } = req.body ?? {};
     if (!authorId || (!reason && !content)) return fail(res, 400, "authorId and post content are required");
     const db = await getDb(); if (!db) return fail(res, 503, "Database is not available");
-    const companyName = String(company).trim().slice(0, 160); const isCompanyStory = companyName !== "The Wire";
+    const companyName = String(company).trim().slice(0, 160); const isCompanyStory = String(postType) === "exit" && companyName !== "The Wire";
     if (isCompanyStory) { const verified = await db.select().from(verifications).where(and(eq(verifications.userId, Number(authorId)), eq(verifications.company, companyName), eq(verifications.status, "approved"))).limit(1); if (!verified.length) return fail(res, 403, "Verify that you worked at this company before posting about it"); }
     let mediaUrl: string | null = null; let mediaType: string | null = null;
     if (mediaDataUri) { const parsed = mediaFromDataUri(mediaDataUri); if (!parsed || !["image/", "video/"].some((prefix) => parsed.mime.startsWith(prefix))) return fail(res, 400, "Only image or video media is supported"); if (parsed.buffer.length > (parsed.mime.startsWith("video/") ? 50 : 8) * 1024 * 1024) return fail(res, 413, "Media exceeds the upload limit"); const uploaded = await storagePut(`posts/${authorId}/media`, parsed.buffer, parsed.mime); mediaUrl = uploaded.url; mediaType = parsed.mime; }
