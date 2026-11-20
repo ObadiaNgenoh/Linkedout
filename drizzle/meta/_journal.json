@@ -22,6 +22,13 @@
       "when": 1795154804964,
       "tag": "0002_short_red_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1795158540090,
+      "tag": "0003_rapid_eddie_brock",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 ## Real member profiles
 - [x] Allow email signups with real name, username, and email data stored in the managed database.
-- [x] Do not add email verification, passwords, or user authentication yet; clearly label this as an early-access limitation.
+- [x] Add passwordless email-code signup/login with expiring, hashed verification challenges and 30-day bearer sessions.
 - [x] Allow users to edit their name, username, and bio.
 - [x] Allow users to choose a profile photo from their library or capture one directly with the camera, upload it through managed storage, and persist the stable photo URL.
 - [x] Add a profile logout button that clears the local device session without deleting the stored account, posts, or messages.
@@ -22,17 +22,18 @@
 - [ ] Let members Link/Unlink each other, show follower/following counts, and broadcast link events.
 - [ ] Add durable Signals/notifications for links, same-here reactions, comments, pass-it-ons, and messages.
 - [ ] Rename social copy to LinkedOut-native terms: The Wire, outs, same-here, pass-it-on, links, exit tags, exit identities, and Signals.
-- [ ] Keep the browser and React Native clients responsive and behaviorally aligned.
+- [x] Keep the browser and React Native clients responsive and behaviorally aligned.
+- [x] Use `noreply@linkedout.bashchat.me` for transactional email and keep `https://linkedout.us.ci/?out=<id>` as the canonical post-link base.
 
 ## Real-time communication
 - [x] Persist direct messages in the managed database.
 - [x] Broadcast `message:new` events through the WebSocket channel so a connected phone receives a sent message live.
 - [x] Broadcast feed, reaction, comment, and presence events and refetch durable state after events.
 - [x] Load messages from the database on reconnect so they remain available after a temporary disconnect.
-- [ ] Broadcast new social-layer events for outs, links, Signals, media, and view/reaction changes.
+- [x] Broadcast new social-layer events for outs, links, Signals, media, and view/reaction changes.
 
 ## Product boundaries
 - [x] Keep the no-Supabase boundary.
-- [x] Keep no passwords, email verification, secure authentication, authorization boundary, moderation pipeline, or rate limiting yet.
+- [x] Keep no passwords; email verification is now live, while full server-side authorization, moderation, abuse reporting, and advanced rate limiting remain launch hardening work.
 - [x] Keep no job applications, recruiter marketplace, resume, or AI summaries.
 - [ ] Document that public launch still needs secure auth, authorization, moderation, abuse reporting, media scanning, CDN/object storage, and notification delivery.

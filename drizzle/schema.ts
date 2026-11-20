@@ -97,6 +97,28 @@ export const messages = mysqlTable("messages", {
   readAt: timestamp("readAt"),
 });
 
+export const emailChallenges = mysqlTable("emailChallenges", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull(),
+  codeHash: varchar("codeHash", { length: 128 }).notNull(),
+  purpose: mysqlEnum("purpose", ["signup", "login"]).notNull(),
+  name: text("name"),
+  username: varchar("username", { length: 32 }),
+  deviceId: varchar("deviceId", { length: 128 }),
+  expiresAt: timestamp("expiresAt").notNull(),
+  attempts: int("attempts").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const sessions = mysqlTable("sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  tokenHash: varchar("tokenHash", { length: 128 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  lastUsedAt: timestamp("lastUsedAt").defaultNow().notNull(),
+});
+
 type UserRow = typeof users.$inferSelect;
 export type User = Omit<UserRow, "username" | "profilePhotoUrl" | "bio"> & Partial<Pick<UserRow, "username" | "profilePhotoUrl" | "bio">>;
 export type InsertUser = typeof users.$inferInsert;
