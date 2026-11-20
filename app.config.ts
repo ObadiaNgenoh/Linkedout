@@ -109,6 +109,14 @@ const config: ExpoConfig = {
     output: "static",
     favicon: "./assets/images/favicon.png",
   },
+  updates: {
+    url: "https://u.expo.dev/30d50024-268a-4342-acfb-2839d08ff810",
+    checkAutomatically: "ON_LOAD",
+    fallbackToCacheTimeout: 0,
+  },
+  runtimeVersion: {
+    policy: "appVersion",
+  },
   plugins: [
     "expo-asset",
     "expo-router",
