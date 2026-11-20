@@ -2,7 +2,7 @@ import type { Server } from "http";
 import { WebSocketServer, type WebSocket } from "ws";
 
 type RealtimeEvent = {
-  type: "feed:new" | "feed:reaction" | "feed:comment" | "message:new" | "presence";
+  type: "feed:new" | "feed:reaction" | "feed:comment" | "message:new" | "presence" | "out:new" | "out:reaction" | "out:comment" | "out:repost" | "link:changed" | "signal:new";
   payload: Record<string, unknown>;
 };
 
@@ -27,7 +27,7 @@ export function attachRealtime(server: Server) {
 
     socket.on("close", () => {
       clients.delete(socket);
-      broadcast({ type: "presence", payload: { online: clients.size, mode: "prototype" } });
+      broadcast({ type: "presence", payload: { online: clients.size, mode: "database-backed" } });
     });
   });
 

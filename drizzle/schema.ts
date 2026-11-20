@@ -31,7 +31,13 @@ export const posts = mysqlTable("posts", {
   role: varchar("role", { length: 160 }),
   duration: varchar("duration", { length: 64 }),
   reason: varchar("reason", { length: 300 }).notNull(),
+  content: text("content"),
+  postType: mysqlEnum("postType", ["exit", "text", "photo", "video", "repost"]).default("exit").notNull(),
+  mediaUrl: varchar("mediaUrl", { length: 1024 }),
+  mediaType: varchar("mediaType", { length: 80 }),
   tags: text("tags"),
+  viewCount: int("viewCount").default(0).notNull(),
+  repostCount: int("repostCount").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -50,6 +56,38 @@ export const comments = mysqlTable("comments", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const follows = mysqlTable("follows", {
+  id: int("id").autoincrement().primaryKey(),
+  followerId: int("followerId").notNull(),
+  followingId: int("followingId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({ uniqueFollow: uniqueIndex("follow_unique").on(table.followerId, table.followingId) }));
+
+export const postViews = mysqlTable("postViews", {
+  id: int("id").autoincrement().primaryKey(),
+  postId: int("postId").notNull(),
+  userId: int("userId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({ uniqueView: uniqueIndex("post_view_unique").on(table.postId, table.userId) }));
+
+export const reposts = mysqlTable("reposts", {
+  id: int("id").autoincrement().primaryKey(),
+  postId: int("postId").notNull(),
+  userId: int("userId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({ uniqueRepost: uniqueIndex("repost_unique").on(table.postId, table.userId) }));
+
+export const notifications = mysqlTable("notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  recipientId: int("recipientId").notNull(),
+  actorId: int("actorId").notNull(),
+  type: mysqlEnum("type", ["link", "reaction", "comment", "repost", "message"]).notNull(),
+  postId: int("postId"),
+  message: varchar("message", { length: 240 }).notNull(),
+  readAt: timestamp("readAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export const messages = mysqlTable("messages", {
   id: int("id").autoincrement().primaryKey(),
   senderId: int("senderId").notNull(),
@@ -60,6 +98,5 @@ export const messages = mysqlTable("messages", {
 });
 
 type UserRow = typeof users.$inferSelect;
-export type User = Omit<UserRow, "username" | "profilePhotoUrl" | "bio"> &
-  Partial<Pick<UserRow, "username" | "profilePhotoUrl" | "bio">>;
+export type User = Omit<UserRow, "username" | "profilePhotoUrl" | "bio"> & Partial<Pick<UserRow, "username" | "profilePhotoUrl" | "bio">>;
 export type InsertUser = typeof users.$inferInsert;

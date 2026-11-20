@@ -15,6 +15,13 @@
       "when": 1793200480580,
       "tag": "0001_solid_diamondback",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1795154804964,
+      "tag": "0002_short_red_hulk",
+      "breakpoints": true
     }
   ]
 }

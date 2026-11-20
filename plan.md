@@ -2,25 +2,25 @@
 
 ## Product direction
 
-LinkedOut is a LinkedIn-inspired professional network for people who quit or were fired. It is not a job board: the central object is a verified exit identity and the safe, useful conversation around what happened at work. People can have profiles, connect with other members, read a real-time feed, comment, react, and message each other. Any company-specific story remains gated behind proof that the author worked there.
+LinkedOut is a professional social network for people who quit or were fired. It combines the useful profile/network context of LinkedIn with the real-time public conversation and media feed of X, while keeping its differentiator: verified exit stories and a safer, pseudonymous-by-default space for workplace truth.
 
-## Current implementation
+The product vocabulary is LinkedOut-native: posts are **outs**, likes are **same-here** reactions, reposts are **pass-it-ons**, follows are **links**, hashtags are **exit tags**, profiles are **exit identities**, notifications are **signals**, and the home feed is **The Wire**.
 
-The app now uses the managed MySQL-compatible database and managed object storage directly. There is no Supabase and no seeded mock data. On first launch, a member creates a real profile with name, username, and email; the record is stored immediately. This is intentionally not authentication yet: there is no password, email verification, or secure session. The device stores its local member reference so the app can reopen the same profile.
+## Social release architecture
 
-Users can edit name, username, and bio. They can choose a profile photo from the device library or capture one with the camera. The server validates the base64 upload, sends it through the managed storage presign flow, stores the stable asset path on the user record, and returns the updated profile.
+The existing durable MySQL schema remains the source of truth. Posts gain long-form text, optional image/video media, media type, view counts, and visibility metadata while retaining company/role/duration and the verified-employer gate. Durable tables cover links (follows), post views, notifications, and existing comments/reactions/messages. The WebSocket broker broadcasts new outs, reactions, comments, links, signals, and message events; clients refetch durable state after events.
 
-Feed posts, reactions, comments, verification records, and direct messages are persisted in MySQL. The WebSocket endpoint `/ws` broadcasts database-backed `feed:new`, `feed:reaction`, `feed:comment`, `message:new`, and `presence` events. Messages are inserted before broadcast, so a connected phone receives the message live and a reconnecting phone can load it from the database. The client refetches after realtime events to stay consistent with durable state.
+The API remains Express with no Supabase and no mock data. Media uploads use the existing local Linode storage adapter in production and return stable `/manus-storage/...` URLs. Upload limits are enforced server-side: images up to 8 MB, videos up to 50 MB, and supported MIME types only.
 
 ## Experience surfaces
 
-- **Live Feed:** real database posts with member identity rows, reactions, comments, company context, and live connection state.
-- **Profiles:** editable name, username, bio, email display, and profile image from library or camera.
-- **Network:** real member directory sourced from stored users, with direct-message actions.
-- **Messages:** durable one-to-one messages sent through HTTP, broadcast over WebSocket, and reloaded from storage on reconnect.
-- **Company file:** database-backed company story view and search.
-- **Proof gate:** company + proof type creates a verification record; posting checks an approved verification for that exact company.
+- **The Wire:** real-time text/image/video outs with verified company context, author identity, view counts, same-here counts, comments, pass-it-on action, and live updates.
+- **Exit identities:** editable name, username, bio, profile photo, follower/following counts, links, and a member’s outs.
+- **Network:** discover members, follow/unfollow with the LinkedOut-native “Link” action, and message connected members.
+- **Company files:** searchable verified exit stories plus aggregated counts.
+- **Signals:** durable notifications for links, same-here reactions, comments, pass-it-ons, and messages.
+- **Composer:** text, optional image/video, exit tags, and company verification when a post names an employer.
 
 ## Boundaries
 
-No Supabase. No email verification or user authentication yet. Because there is no authentication, this release is a development/early-access build: the client-provided device/member ID is not a security boundary. Before public launch, add passwordless or password authentication, email verification, authorization checks, moderation, rate limits, encrypted proof handling, and a secure identity/session model.
+This release intentionally keeps the early-access identity model: no password, email verification, or secure session yet. The client-provided member ID is not a security boundary. Before public launch, add secure authentication, authorization checks, moderation, rate limits, encrypted proof handling, abuse reporting, content takedown policy, media scanning/transcoding, background notifications, and proper object storage/CDN. Full LinkedIn hiring, recruiter, resume, jobs, and endorsements are out of scope.
