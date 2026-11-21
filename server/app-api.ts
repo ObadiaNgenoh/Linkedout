@@ -1,6 +1,6 @@
 import type { Express, Response } from "express";
 import { createHash, randomBytes, randomInt } from "node:crypto";
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { comments, emailChallenges, follows, messages, notifications, postReactions, postViews, posts, reposts, sessions, users, verifications } from "../drizzle/schema";
 import { getDb } from "./db";
 import { storagePut } from "./storage";
@@ -173,4 +173,24 @@ export function registerAppApi(app: Express) {
 
   app.get("/api/messages", async (req, res) => { const userId = Number(req.query.userId); if (!userId) return fail(res, 400, "userId is required"); const db = await getDb(); if (!db) return fail(res, 503, "Database is not available"); const rows = await db.select().from(messages).where(or(eq(messages.senderId, userId), eq(messages.recipientId, userId))).orderBy(desc(messages.createdAt)).limit(100); return res.json({ messages: rows }); });
   app.post("/api/messages", async (req, res) => { const { senderId, recipientId, body } = req.body ?? {}; if (!senderId || !recipientId || !body) return fail(res, 400, "senderId, recipientId and body are required"); const db = await getDb(); if (!db) return fail(res, 503, "Database is not available"); const insert = await db.insert(messages).values({ senderId: Number(senderId), recipientId: Number(recipientId), body: String(body).slice(0, 2000) }); const messageId = Number(insert[0].insertId); const row = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1); await notify(db, Number(recipientId), Number(senderId), "message", "You have a new direct message."); broadcast({ type: "message:new", payload: { message: row[0] } }); return res.status(201).json({ message: row[0] }); });
+  app.post("/api/bots/remotejobs/run", async (req, res) => {
+    if (!ENV.remotejobsBotSecret || req.header("x-remotejobs-secret") !== ENV.remotejobsBotSecret) return fail(res, 401, "Bot authorization failed");
+    const db = await getDb(); if (!db) return fail(res, 503, "Database is not available");
+    const sourceResponse = await fetch("https://remoteok.com/api", { headers: { "User-Agent": "LinkedOut remotejobs bot/1.0 (+https://linkedout.us.ci)" } });
+    if (!sourceResponse.ok) return fail(res, 502, "Remote jobs source is unavailable");
+    const source = await sourceResponse.json() as Array<Record<string, unknown>>;
+    const existing = await db.select().from(users).where(eq(users.username, "remotejobs")).limit(1);
+    let bot = existing[0];
+    if (!bot) { await db.insert(users).values({ openId: "bot:remotejobs", name: "Remote Jobs", username: "remotejobs", email: "remotejobs@linkedout.us.ci", bio: "Curated remote opportunities from public job boards.", loginMethod: "bot" }); bot = (await db.select().from(users).where(eq(users.username, "remotejobs")).limit(1))[0]; }
+    if (!bot) return fail(res, 500, "Could not initialize remotejobs account");
+    let created = 0;
+    for (const item of source.filter((entry) => entry.id && entry.url && entry.position).slice(0, 12)) {
+      const url = String(item.url); const duplicate = await db.select({ id: posts.id }).from(posts).where(and(eq(posts.authorId, bot.id), like(posts.content, `%${url}%`))).limit(1); if (duplicate.length) continue;
+      const title = String(item.position).slice(0, 180); const company = String(item.company || "Remote employer").slice(0, 160); const location = String(item.location || "Remote").slice(0, 100); const tags = Array.isArray(item.tags) ? item.tags.filter((tag): tag is string => typeof tag === "string").slice(0, 8) : [];
+      const body = `Remote opening: ${title} at ${company}. Location: ${location}.\n\nApply here: ${url}`.slice(0, 5000);
+      await db.insert(posts).values({ authorId: bot.id, company, role: title, duration: location, reason: body.slice(0, 300), content: body, postType: "text", mediaUrl: typeof item.company_logo === "string" ? item.company_logo : null, mediaType: typeof item.company_logo === "string" ? "image/url" : null, tags: JSON.stringify(["#remotejobs", ...tags.map((tag) => `#${tag.replace(/[^a-z0-9]+/gi, "")}`).filter((tag) => tag.length > 1)]) });
+      created += 1;
+    }
+    broadcast({ type: "out:new", payload: { bot: "remotejobs", created } }); return res.json({ ok: true, bot: "@remotejobs", created, scanned: source.length });
+  });
 }
