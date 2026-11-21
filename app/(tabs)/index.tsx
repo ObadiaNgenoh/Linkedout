@@ -476,7 +476,7 @@ export default function HomeScreen() {
   if (!user)
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.shell}>
+        <View style={[styles.shell, styles.authShell]}>
           <SignupSheet
             mode={authMode}
             pending={authPending}
@@ -1479,11 +1479,18 @@ function SignupSheet({
 }) {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [localEmail, setLocalEmail] = useState(email);
   useEffect(() => setLocalEmail(email), [email]);
   return (
     <View style={styles.sheet}>
       <View style={styles.sheetHandle} />
+      <View style={styles.authBrand}>
+        <View style={styles.logoMark}>
+          <View style={styles.logoDoor} />
+        </View>
+        <Text style={styles.wordmark}>LINKEDOUT</Text>
+      </View>
       <Text style={styles.kicker}>WELCOME TO LINKEDOUT</Text>
       <Text style={styles.sheetTitle}>
         {pending
@@ -1562,14 +1569,45 @@ function SignupSheet({
             placeholderTextColor={C.muted}
             style={styles.input}
           />
+          {mode === "signup" ? (
+            <Pressable
+              style={styles.consentRow}
+              onPress={() => setAgreed((value) => !value)}
+            >
+              <Ionicons
+                name={agreed ? "checkbox" : "square-outline"}
+                size={22}
+                color={agreed ? C.coral : C.muted}
+              />
+              <Text style={styles.consentText}>
+                I agree to the{" "}
+                <Text
+                  style={styles.consentLink}
+                  onPress={() => Linking.openURL(`${PUBLIC_APP_URL}/terms`)}
+                >
+                  Terms of Use
+                </Text>{" "}
+                and{" "}
+                <Text
+                  style={styles.consentLink}
+                  onPress={() => Linking.openURL(`${PUBLIC_APP_URL}/privacy`)}
+                >
+                  Privacy Policy
+                </Text>
+                .
+              </Text>
+            </Pressable>
+          ) : null}
           <Pressable
             style={[
               styles.publishButton,
-              (!localEmail || (mode === "signup" && (!name || !username))) &&
+              (!localEmail ||
+                (mode === "signup" && (!name || !username || !agreed))) &&
                 styles.disabled,
             ]}
             disabled={
-              !localEmail || (mode === "signup" && (!name || !username))
+              !localEmail ||
+              (mode === "signup" && (!name || !username || !agreed))
             }
             onPress={() => onSubmit({ name, username, email: localEmail })}
           >
@@ -2026,6 +2064,7 @@ function CommentsSheet({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.paper },
   shell: { flex: 1, backgroundColor: C.paper },
+  authShell: { justifyContent: "center", paddingHorizontal: 18 },
   header: {
     height: 68,
     paddingHorizontal: 20,
@@ -2233,6 +2272,22 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     maxHeight: "88%",
   },
+  authBrand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    alignSelf: "center",
+    marginBottom: 24,
+  },
+  consentRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+    marginTop: 12,
+    marginBottom: 5,
+  },
+  consentText: { flex: 1, color: C.muted, fontSize: 12, lineHeight: 18 },
+  consentLink: { color: C.coral, fontWeight: "800" },
   sheetHandle: {
     width: 44,
     height: 5,
