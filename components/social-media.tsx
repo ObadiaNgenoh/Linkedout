@@ -1,6 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useVideoPlayer, VideoView } from "expo-video";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 const COLORS = {
   ink: "#141414",
@@ -111,7 +118,7 @@ export function FilterStrip({
 }) {
   return (
     <View style={styles.filterStrip}>
-      {["clean", "warm", "mono"].map((filter) => (
+      {["original", "sunset", "rose", "noir"].map((filter) => (
         <Pressable
           key={filter}
           onPress={() => onChange(filter)}
@@ -130,6 +137,38 @@ export function FilterStrip({
           </Text>
         </Pressable>
       ))}
+    </View>
+  );
+}
+
+export function FilterPreview({
+  uri,
+  filter,
+}: {
+  uri: string;
+  filter: string;
+}) {
+  const tint =
+    filter === "sunset"
+      ? "rgba(245, 126, 55, 0.25)"
+      : filter === "rose"
+        ? "rgba(223, 83, 111, 0.20)"
+        : filter === "noir"
+          ? "rgba(20, 20, 20, 0.34)"
+          : "transparent";
+  return (
+    <View style={styles.previewFrame}>
+      <Image source={{ uri }} style={styles.previewImage} resizeMode="cover" />
+      <View
+        pointerEvents="none"
+        style={[styles.previewTint, { backgroundColor: tint }]}
+      />
+      <View style={styles.previewLabel}>
+        <Ionicons name="color-filter-outline" size={13} color={COLORS.cream} />
+        <Text style={styles.previewLabelText}>
+          {filter.toUpperCase()} PREVIEW
+        </Text>
+      </View>
     </View>
   );
 }
@@ -227,4 +266,32 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   filterTextActive: { color: COLORS.cream },
+  previewFrame: {
+    height: 170,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: COLORS.ink,
+    position: "relative",
+    marginTop: 8,
+  },
+  previewImage: { width: "100%", height: "100%" },
+  previewTint: { ...StyleSheet.absoluteFill },
+  previewLabel: {
+    position: "absolute",
+    bottom: 9,
+    left: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(20,20,20,0.72)",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  previewLabelText: {
+    color: COLORS.cream,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+  },
 });

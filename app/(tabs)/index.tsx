@@ -6,6 +6,7 @@ import {
   LinkedText,
   LinkPreview,
   FilterStrip,
+  FilterPreview,
 } from "../../components/social-media";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -80,11 +81,13 @@ type Message = {
   body: string;
   createdAt: string;
 };
+type ConnectionStatus = "connecting" | "connected" | "lost";
 type Screen =
   | "feed"
   | "reels"
   | "network"
   | "messages"
+  | "chat"
   | "you"
   | "company"
   | "search"
@@ -140,7 +143,9 @@ export default function HomeScreen() {
   const [selectedCompany, setSelectedCompany] = useState("");
   const [verifiedCompany, setVerifiedCompany] = useState("");
   const [notice, setNotice] = useState("");
-  const [live, setLive] = useState(false);
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionStatus>("connecting");
+  const [storyMode, setStoryMode] = useState(false);
   const [authMode, setAuthMode] = useState<"signup" | "login">("signup");
   const [authPending, setAuthPending] = useState(false);
   const [updateState, setUpdateState] = useState("Checking for OTA updates…");
@@ -208,37 +213,55 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!user) return;
     let socket: WebSocket | null = null;
-    try {
-      socket = new WebSocket(WS);
-      socket.onopen = () => setLive(true);
-      socket.onclose = () => setLive(false);
-      socket.onerror = () => setLive(false);
-      socket.onmessage = (event) => {
-        try {
-          const incoming = JSON.parse(event.data);
-          if (
-            [
-              "feed:new",
-              "feed:reaction",
-              "feed:comment",
-              "out:new",
-              "out:reaction",
-              "out:comment",
-              "out:repost",
-              "link:changed",
-              "signal:new",
-            ].includes(incoming.type)
-          ) {
-            loadFeed();
-            loadPeople();
-          }
-          if (incoming.type === "message:new") loadMessages();
-        } catch {}
-      };
-    } catch {
-      setLive(false);
-    }
-    return () => socket?.close();
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let disposed = false;
+    const connect = () => {
+      if (disposed) return;
+      setConnectionStatus("connecting");
+      try {
+        socket = new WebSocket(WS);
+        socket.onopen = () => {
+          setConnectionStatus("connected");
+          loadFeed();
+        };
+        socket.onclose = () => {
+          setConnectionStatus("lost");
+          if (!disposed) retry = setTimeout(connect, 3000);
+        };
+        socket.onerror = () => setConnectionStatus("lost");
+        socket.onmessage = (event) => {
+          try {
+            const incoming = JSON.parse(event.data);
+            if (
+              [
+                "feed:new",
+                "feed:reaction",
+                "feed:comment",
+                "out:new",
+                "out:reaction",
+                "out:comment",
+                "out:repost",
+                "link:changed",
+                "signal:new",
+              ].includes(incoming.type)
+            ) {
+              loadFeed();
+              loadPeople();
+            }
+            if (incoming.type === "message:new") loadMessages();
+          } catch {}
+        };
+      } catch {
+        setConnectionStatus("lost");
+        retry = setTimeout(connect, 3000);
+      }
+    };
+    connect();
+    return () => {
+      disposed = true;
+      if (retry) clearTimeout(retry);
+      socket?.close();
+    };
   }, [user, loadFeed, loadPeople, loadMessages]);
 
   const signup = async (data: {
@@ -493,7 +516,10 @@ export default function HomeScreen() {
             </Pressable>
             <Pressable
               style={styles.headerButton}
-              onPress={() => setSheet("compose")}
+              onPress={() => {
+                setStoryMode(false);
+                setSheet("compose");
+              }}
             >
               <Ionicons name="add" size={19} color={C.ink} />
               <Text style={styles.headerButtonText}>Post</Text>
@@ -504,7 +530,7 @@ export default function HomeScreen() {
           <FeedView
             posts={visiblePosts}
             user={user}
-            live={live}
+            connectionStatus={connectionStatus}
             liked={liked}
             onSearch={() => setScreen("search")}
             onLike={react}
@@ -517,6 +543,10 @@ export default function HomeScreen() {
             onCompany={(company) => {
               setSelectedCompany(company);
               setScreen("company");
+            }}
+            onCreateStory={() => {
+              setStoryMode(true);
+              setSheet("compose");
             }}
           />
         )}
@@ -572,7 +602,7 @@ export default function HomeScreen() {
             people={people}
             onMessage={(person) => {
               setSelectedRecipient(person);
-              setSheet("message");
+              setScreen("chat");
             }}
             onToggleLink={async (person) => {
               if (!user) return;
@@ -592,8 +622,17 @@ export default function HomeScreen() {
             people={people}
             onPickRecipient={(person) => {
               setSelectedRecipient(person);
-              setSheet("message");
+              setScreen("chat");
             }}
+          />
+        )}
+        {screen === "chat" && selectedRecipient && (
+          <ChatView
+            messages={messages}
+            user={user}
+            recipient={selectedRecipient}
+            onBack={() => setScreen("messages")}
+            onSend={sendMessage}
           />
         )}
         {screen === "company" && (
@@ -689,7 +728,11 @@ export default function HomeScreen() {
             <ComposeSheet
               user={user}
               verifiedCompany={verifiedCompany}
-              onPost={publish}
+              storyMode={storyMode}
+              onPost={(data) => {
+                setStoryMode(false);
+                publish(data);
+              }}
             />
           )}
           {sheet === "message" && (
@@ -732,7 +775,7 @@ function Avatar({ user, size = 38 }: { user?: User | null; size?: number }) {
 function FeedView({
   posts,
   user,
-  live,
+  connectionStatus,
   liked,
   onSearch,
   onLike,
@@ -740,10 +783,11 @@ function FeedView({
   onShare,
   onComment,
   onCompany,
+  onCreateStory,
 }: {
   posts: Post[];
   user: User;
-  live: boolean;
+  connectionStatus: ConnectionStatus;
   liked: number[];
   onSearch: () => void;
   onLike: (id: number) => void;
@@ -751,6 +795,7 @@ function FeedView({
   onShare: (id: number) => void;
   onComment: (post: Post) => void;
   onCompany: (company: string) => void;
+  onCreateStory: () => void;
 }) {
   return (
     <ScrollView
@@ -758,19 +803,30 @@ function FeedView({
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.hero}>
-        <View style={styles.liveRow}>
-          <View style={[styles.liveDot, live && styles.liveDotOn]} />
-          <Text style={styles.liveText}>
-            {live ? "LIVE WIRE" : "OFFLINE · RETRYING"}
-          </Text>
-          <Text style={styles.liveCount}>real-time</Text>
-        </View>
-        <Text style={styles.heroTitle}>YOUR FEED{`\n`}YOUR PEOPLE.</Text>
+        {connectionStatus !== "connected" ? (
+          <View style={styles.connectionBanner}>
+            <View
+              style={[
+                styles.liveDot,
+                connectionStatus === "connecting"
+                  ? styles.liveDotConnecting
+                  : styles.liveDotLost,
+              ]}
+            />
+            <Text style={styles.connectionText}>
+              {connectionStatus === "connecting"
+                ? "Connecting…"
+                : "Connection lost · reconnecting"}
+            </Text>
+          </View>
+        ) : null}
+        <Text style={styles.heroTitle}>YOUR FEED.</Text>
         <Text style={styles.heroBody}>
           Share what is happening in your world, discover people you like, and
           join the conversation.
         </Text>
       </View>
+      <StoriesRail posts={posts} onCreateStory={onCreateStory} />
       <Pressable style={styles.profilePrompt} onPress={onSearch}>
         <Avatar user={user} />
         <View style={{ flex: 1 }}>
@@ -812,6 +868,65 @@ function EmptyFeed() {
       <Text style={styles.emptyBody}>
         Follow people you like or share your first post with the community.
       </Text>
+    </View>
+  );
+}
+function StoriesRail({
+  posts,
+  onCreateStory,
+}: {
+  posts: Post[];
+  onCreateStory: () => void;
+}) {
+  const stories = posts.filter((post) =>
+    (post.tags || []).some((tag) => tag.toLowerCase() === "#story"),
+  );
+  return (
+    <View style={styles.storiesBlock}>
+      <View style={styles.sectionRow}>
+        <Text style={styles.sectionTitle}>STORIES</Text>
+        <Text style={styles.sectionMeta}>Share a moment</Text>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.storiesRow}
+      >
+        <Pressable style={styles.storyCard} onPress={onCreateStory}>
+          <View style={styles.storyAdd}>
+            <Ionicons name="add" size={24} color={C.ink} />
+          </View>
+          <Text style={styles.storyName}>Your story</Text>
+          <Text style={styles.storyHint}>Add photo or video</Text>
+        </Pressable>
+        {stories.map((story) => (
+          <Pressable key={story.id} style={styles.storyCard}>
+            <View style={styles.storyImageWrap}>
+              {story.mediaUrl && story.mediaType?.startsWith("image") ? (
+                <Image
+                  source={{ uri: imageUrl(story.mediaUrl) || undefined }}
+                  style={styles.storyImage}
+                />
+              ) : (
+                <View style={styles.storyTextPreview}>
+                  <Text style={styles.storyTextPreviewText} numberOfLines={3}>
+                    {story.content || story.reason}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.storyAvatar}>
+                <Avatar user={story.author} size={30} />
+              </View>
+            </View>
+            <Text style={styles.storyName} numberOfLines={1}>
+              {story.author?.username ? `@${story.author.username}` : "member"}
+            </Text>
+            <Text style={styles.storyHint} numberOfLines={1}>
+              {timeAgo(story.createdAt)}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -1081,11 +1196,11 @@ function MessagesView({
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.kicker}>REAL-TIME MESSAGES</Text>
+      <Text style={styles.kicker}>INBOX</Text>
       <Text style={styles.pageTitle}>Talk it out.</Text>
       <Text style={styles.pageBody}>
-        Messages are stored and delivered through the live channel. Pick a real
-        member from Network to start.
+        Your conversations, in one place. Pick someone from your network to
+        start chatting.
       </Text>
       {people.map((person) => (
         <Pressable
@@ -1111,18 +1226,119 @@ function MessagesView({
         </Pressable>
       ))}
       {!people.length && <EmptyFeed />}
-      <Text style={styles.sectionTitle}>RECENT MESSAGE EVENTS</Text>
+      <Text style={styles.sectionTitle}>RECENT MESSAGES</Text>
       {relevant
         .filter((message) => message.senderId === user.id)
         .map((message) => (
           <View key={message.id} style={styles.sentMessage}>
             <Text style={styles.sentText}>{message.body}</Text>
-            <Text style={styles.sentMeta}>
-              stored · {timeAgo(message.createdAt)}
-            </Text>
+            <Text style={styles.sentMeta}>{timeAgo(message.createdAt)}</Text>
           </View>
         ))}
     </ScrollView>
+  );
+}
+function ChatView({
+  messages,
+  user,
+  recipient,
+  onBack,
+  onSend,
+}: {
+  messages: Message[];
+  user: User;
+  recipient: User;
+  onBack: () => void;
+  onSend: (body: string) => void;
+}) {
+  const conversation = messages
+    .filter(
+      (message) =>
+        (message.senderId === user.id &&
+          message.recipientId === recipient.id) ||
+        (message.senderId === recipient.id && message.recipientId === user.id),
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+  const [draft, setDraft] = useState("");
+  return (
+    <View style={styles.chatScreen}>
+      <View style={styles.chatHeader}>
+        <Pressable onPress={onBack}>
+          <Ionicons name="arrow-back" size={22} color={C.ink} />
+        </Pressable>
+        <Avatar user={recipient} size={42} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.chatTitle}>
+            {recipient.name || `@${recipient.username}`}
+          </Text>
+          <Text style={styles.chatHandle}>@{recipient.username}</Text>
+        </View>
+        <Ionicons name="call-outline" size={20} color={C.muted} />
+      </View>
+      <ScrollView contentContainerStyle={styles.chatMessages}>
+        {conversation.length ? (
+          conversation.map((message) => (
+            <View
+              key={message.id}
+              style={[
+                styles.bubble,
+                message.senderId === user.id
+                  ? styles.bubbleMine
+                  : styles.bubbleTheirs,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.bubbleText,
+                  message.senderId === user.id && styles.bubbleTextMine,
+                ]}
+              >
+                {message.body}
+              </Text>
+              <Text
+                style={[
+                  styles.bubbleTime,
+                  message.senderId === user.id && styles.bubbleTimeMine,
+                ]}
+              >
+                {timeAgo(message.createdAt)}
+              </Text>
+            </View>
+          ))
+        ) : (
+          <View style={styles.chatEmpty}>
+            <Ionicons name="chatbubbles-outline" size={36} color={C.coral} />
+            <Text style={styles.chatEmptyTitle}>Start the conversation</Text>
+            <Text style={styles.chatEmptyBody}>
+              Say hello to @{recipient.username}.
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+      <View style={styles.chatComposer}>
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          placeholder="Message…"
+          placeholderTextColor={C.muted}
+          multiline
+          style={styles.chatInput}
+        />
+        <Pressable
+          style={[styles.sendButton, !draft.trim() && styles.disabled]}
+          disabled={!draft.trim()}
+          onPress={() => {
+            onSend(draft.trim());
+            setDraft("");
+          }}
+        >
+          <Ionicons name="arrow-up" size={20} color={C.cream} />
+        </Pressable>
+      </View>
+    </View>
   );
 }
 function CompanyView({
@@ -1497,10 +1713,12 @@ function VerifySheet({
 function ComposeSheet({
   user,
   verifiedCompany,
+  storyMode,
   onPost,
 }: {
   user: User;
   verifiedCompany: string;
+  storyMode: boolean;
   onPost: (data: {
     company: string;
     role: string;
@@ -1516,7 +1734,7 @@ function ComposeSheet({
   const [tags, setTags] = useState("");
   const [mediaDataUri, setMediaDataUri] = useState<string | undefined>();
   const [mediaType, setMediaType] = useState<string | undefined>();
-  const [filter, setFilter] = useState("clean");
+  const [filter, setFilter] = useState("original");
   const attach = (result: ImagePicker.ImagePickerResult) => {
     if (!result.canceled && result.assets[0].base64) {
       const asset = result.assets[0];
@@ -1547,8 +1765,12 @@ function ComposeSheet({
   return (
     <View style={styles.sheet}>
       <View style={styles.sheetHandle} />
-      <Text style={styles.kicker}>CREATE A POST · @{user.username}</Text>
-      <Text style={styles.sheetTitle}>What’s happening?</Text>
+      <Text style={styles.kicker}>
+        {storyMode ? "CREATE A STORY" : `CREATE A POST · @${user.username}`}
+      </Text>
+      <Text style={styles.sheetTitle}>
+        {storyMode ? "Share a moment." : "What’s happening?"}
+      </Text>
       <Text style={styles.sheetBody}>
         Share a thought, photo, or video. Adding a company is optional and only
         adds context to your post.
@@ -1592,6 +1814,9 @@ function ComposeSheet({
       </View>
       {mediaType ? (
         <>
+          {mediaDataUri && mediaType.startsWith("image") ? (
+            <FilterPreview uri={mediaDataUri} filter={filter} />
+          ) : null}
           <FilterStrip value={filter} onChange={setFilter} />
           <Text style={styles.filterNote}>
             Filter: {filter} · applied to the capture preview
@@ -1607,7 +1832,13 @@ function ComposeSheet({
             role: "",
             duration: "",
             reason: content.trim(),
-            tags: tags.split(/[, ]+/).filter(Boolean).slice(0, 12),
+            tags: Array.from(
+              new Set([
+                ...tags.split(/[, ]+/).filter(Boolean).slice(0, 12),
+                ...(storyMode ? ["#story"] : []),
+                ...(filter !== "original" ? [`#filter-${filter}`] : []),
+              ]),
+            ),
             mediaDataUri,
             mediaType,
           })
@@ -2139,19 +2370,68 @@ const styles = StyleSheet.create({
   connectText: { color: C.coral, fontWeight: "900", fontSize: 12 },
   mediaRow: { flexDirection: "row", gap: 8 },
   filterNote: { color: C.muted, fontSize: 10, textAlign: "center" },
-  reelsContent: { backgroundColor: C.ink, minHeight: "100%", padding: 20, paddingBottom: 80, gap: 18 },
-  reelsTitle: { color: C.cream, fontSize: 30, fontWeight: "900", letterSpacing: -0.7 },
+  reelsContent: {
+    backgroundColor: C.ink,
+    minHeight: "100%",
+    padding: 20,
+    paddingBottom: 80,
+    gap: 18,
+  },
+  reelsTitle: {
+    color: C.cream,
+    fontSize: 30,
+    fontWeight: "900",
+    letterSpacing: -0.7,
+  },
   reelsSubtitle: { color: "#BEB8B0", fontSize: 14, lineHeight: 20 },
-  reelCard: { backgroundColor: "#242424", borderRadius: 17, padding: 12, gap: 10 },
+  reelCard: {
+    backgroundColor: "#242424",
+    borderRadius: 17,
+    padding: 12,
+    gap: 10,
+  },
   reelCaption: { color: C.cream, fontSize: 16, lineHeight: 22 },
   reelMeta: { color: "#BEB8B0", fontSize: 11 },
-  reelsEmpty: { backgroundColor: "#242424", borderRadius: 18, padding: 28, alignItems: "center", gap: 10 },
+  reelsEmpty: {
+    backgroundColor: "#242424",
+    borderRadius: 18,
+    padding: 28,
+    alignItems: "center",
+    gap: 10,
+  },
   reelsEmptyTitle: { color: C.cream, fontSize: 20, fontWeight: "900" },
-  reelsEmptyBody: { color: "#BEB8B0", fontSize: 13, lineHeight: 19, textAlign: "center" },
-  settingCard: { backgroundColor: C.cream, borderWidth: 1, borderColor: C.line, borderRadius: 15, padding: 16, gap: 9 },
-  settingLabel: { color: C.coral, fontSize: 10, letterSpacing: 1.2, fontWeight: "900" },
+  reelsEmptyBody: {
+    color: "#BEB8B0",
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+  },
+  settingCard: {
+    backgroundColor: C.cream,
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: 15,
+    padding: 16,
+    gap: 9,
+  },
+  settingLabel: {
+    color: C.coral,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    fontWeight: "900",
+  },
   settingValue: { color: C.ink, fontSize: 15, lineHeight: 21, flex: 1 },
-  settingButton: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderColor: C.coral, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 8 },
+  settingButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderWidth: 1,
+    borderColor: C.coral,
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+  },
   empty: {
     backgroundColor: C.cream,
     borderWidth: 1,
@@ -2297,5 +2577,135 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
+  },
+  connectionBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFF2E9",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 4,
+  },
+  liveDotConnecting: { backgroundColor: C.yellow },
+  liveDotLost: { backgroundColor: C.coral },
+  connectionText: { color: C.ink, fontSize: 12, fontWeight: "800" },
+  storiesBlock: { gap: 10 },
+  storiesRow: { gap: 10, paddingRight: 20 },
+  storyCard: { width: 112, gap: 5 },
+  storyAdd: {
+    height: 142,
+    borderRadius: 16,
+    backgroundColor: C.yellow,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: C.line,
+  },
+  storyImageWrap: {
+    height: 142,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: C.ink,
+    position: "relative",
+  },
+  storyImage: { width: "100%", height: "100%" },
+  storyTextPreview: {
+    flex: 1,
+    padding: 12,
+    justifyContent: "center",
+    backgroundColor: C.coral,
+  },
+  storyTextPreviewText: {
+    color: C.cream,
+    fontWeight: "800",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  storyAvatar: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: C.yellow,
+  },
+  storyName: { color: C.ink, fontSize: 12, fontWeight: "900" },
+  storyHint: { color: C.muted, fontSize: 10 },
+  chatScreen: { flex: 1, backgroundColor: C.cream },
+  chatHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: C.line,
+  },
+  chatTitle: { color: C.ink, fontSize: 16, fontWeight: "900" },
+  chatHandle: { color: C.muted, fontSize: 12, marginTop: 2 },
+  chatMessages: {
+    padding: 20,
+    gap: 10,
+    flexGrow: 1,
+    justifyContent: "flex-end",
+  },
+  bubble: {
+    maxWidth: "82%",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    gap: 4,
+  },
+  bubbleMine: {
+    alignSelf: "flex-end",
+    backgroundColor: C.coral,
+    borderBottomRightRadius: 5,
+  },
+  bubbleTheirs: {
+    alignSelf: "flex-start",
+    backgroundColor: C.yellow,
+    borderBottomLeftRadius: 5,
+  },
+  bubbleText: { color: C.ink, fontSize: 15, lineHeight: 20 },
+  bubbleTextMine: { color: C.cream },
+  bubbleTime: { color: C.muted, fontSize: 9, alignSelf: "flex-end" },
+  bubbleTimeMine: { color: "#FFE1D2" },
+  chatEmpty: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 80,
+    gap: 8,
+  },
+  chatEmptyTitle: { color: C.ink, fontWeight: "900", fontSize: 17 },
+  chatEmptyBody: { color: C.muted, fontSize: 13 },
+  chatComposer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+    padding: 14,
+    borderTopWidth: 1,
+    borderTopColor: C.line,
+  },
+  chatInput: {
+    flex: 1,
+    maxHeight: 100,
+    minHeight: 42,
+    backgroundColor: "#FFF8F0",
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    color: C.ink,
+    borderWidth: 1,
+    borderColor: C.line,
+  },
+  sendButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: C.coral,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
